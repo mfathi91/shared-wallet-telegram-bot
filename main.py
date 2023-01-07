@@ -1,5 +1,4 @@
 import logging
-import utils
 from configuration import Configuration
 from database import Database
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
@@ -23,9 +22,10 @@ config = Configuration('config.json', logger)
 database = Database(config, 'db.sql3')
 
 WALLET, SENDER, NOTE, AMOUNT, CONFIRM = range(5)
-WALLET_BALANCE = 0
+WALLET_BALANCE = 5
 
 
+# ------------------- update conversation functions -------------------
 async def update_choose_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     reply_keyboard = [config.get_currencies()]
     await update.message.reply_text(
@@ -97,9 +97,8 @@ async def update_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message.text == 'Yes':
         wallet = context.chat_data['wallet']
         database.write_transaction(context.chat_data['sender'], float(context.chat_data['amount']), wallet, context.chat_data['note'])
-        bal = database.get_balance(wallet)
         await update.message.reply_text(
-            utils.prettify_balance(f'{bal[0]} {config.get_symbol(wallet)}', context.chat_data['wallet'], bal[1]),
+            get_formatted_balance(wallet),
             reply_markup=ReplyKeyboardRemove(),
         )
     else:
@@ -110,6 +109,7 @@ async def update_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+# ------------------ status conversation --------------------
 async def status_choose_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     reply_keyboard = [config.get_currencies()]
     await update.message.reply_text(
@@ -123,19 +123,14 @@ async def status_choose_wallet(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def status_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     wallet = update.message.text
-    bal = database.get_balance(wallet)
-    if bal:
-        bal = database.get_balance(wallet)
-        bal = utils.prettify_balance(f'{bal[0]} {config.get_symbol(wallet)}', wallet, bal[1])
-    else:
-        bal = '0'
     await update.message.reply_text(
-        bal,
+        get_formatted_balance(wallet),
         reply_markup=ReplyKeyboardRemove(),
     )
     return ConversationHandler.END
 
 
+# ----------- cancel current operation for all the conversations -------------
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.chat_data.clear()
     """Cancels and ends the conversation."""
@@ -145,6 +140,17 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         'Ok, the process is canceled.', reply_markup=ReplyKeyboardRemove()
     )
     return ConversationHandler.END
+
+
+# --------------------- Utility methods -----------------------
+def get_formatted_balance(wallet: str) -> str:
+    record = database.get_balance(wallet)
+    if record:
+        amount = record[0]
+        if amount != '0':
+            creditor = record[1]
+            return f'{amount} {config.get_symbol(wallet)}\n{creditor} ⬆️'
+    return '0'
 
 
 def main():
