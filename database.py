@@ -1,6 +1,7 @@
 import os
 import sqlite3
 from typing import Dict, Tuple
+from datetime import datetime
 
 from configuration import Configuration
 from sqlite3 import Connection
@@ -21,9 +22,10 @@ class Database:
                 if not result.fetchone():
                     # Create and initialize users table
                     cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS users (
-                            id   INTEGER PRIMARY KEY,
-                            name TEXT NOT NULL
+                        CREATE TABLE IF NOT EXISTS "users" (
+                            "id"   INTEGER,
+                            "name" TEXT NOT NULL,
+                            PRIMARY KEY("id")
                         );
                     """)
                     for name in self.configuration.get_user_names():
@@ -31,34 +33,38 @@ class Database:
 
                     # Create and initialize wallets table
                     cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS wallets (
-                            id   INTEGER PRIMARY KEY,
-                            wallet TEXT NOT NULL
+                        CREATE TABLE IF NOT EXISTS "wallets" (
+                            "id"   INTEGER,
+                            "wallet" TEXT NOT NULL,
+                            PRIMARY KEY("id")
                         );
                     """)
                     for wallet in self.configuration.get_currencies():
                         cursor.execute(f'INSERT INTO wallets (wallet) VALUES ("{wallet}")')
 
                     cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS transactions (
-                            id        INTEGER PRIMARY KEY,
-                            payer_id INTEGER,
-                            amount    INTEGER,
-                            wallet_id INTEGER,
-                            note      TEXT,
-                            FOREIGN KEY(payer_id) REFERENCES users(id),
-                            FOREIGN KEY(wallet_id) REFERENCES wallets(id)
+                        CREATE TABLE IF NOT EXISTS "payments" (
+                            "id"        INTEGER,
+                            "payer_id"  INTEGER,
+                            "amount"    INTEGER NOT NULL,
+                            "wallet_id" INTEGER,
+                            "note"      TEXT NOT NULL,
+                            "dt"        TEXT NOT NULL,
+                            PRIMARY KEY("id"),
+                            FOREIGN KEY("payer_id") REFERENCES users("id"),
+                            FOREIGN KEY("wallet_id") REFERENCES wallets("id")
                         );
                     """)
 
                     cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS balances (
-                            id        INTEGER PRIMARY KEY,
-                            user_id   INTEGER,
-                            balance   INTEGER,
-                            wallet_id INTEGER,
-                            FOREIGN KEY(user_id) REFERENCES users(id),
-                            FOREIGN KEY(wallet_id) REFERENCES wallet(id)
+                        CREATE TABLE IF NOT EXISTS "balances" (
+                            "id"        INTEGER,
+                            "user_id"   INTEGER,
+                            "balance"   INTEGER,
+                            "wallet_id" INTEGER,
+                            PRIMARY KEY("id"),
+                            FOREIGN KEY("user_id") REFERENCES users("id"),
+                            FOREIGN KEY("wallet_id") REFERENCES wallet("id")
                         );
                     """)
 
@@ -103,27 +109,17 @@ class Database:
                 return candidate_wallet_id
         raise ValueError(f'No wallet with wallet name of "{wallet}" found')
 
-    def __log_transaction(self, connection: Connection, username: str, amount: float, wallet: str, note: str):
+    def __add_payment(self, connection: Connection, username: str, amount: float, wallet: str, note: str):
         cursor = connection.cursor()
         try:
-            cursor.execute('INSERT INTO transactions (payer_id, amount, wallet_id, note) VALUES (?, ?, ?, ?)',
+            cursor.execute('INSERT INTO payments (payer_id, amount, wallet_id, note, dt) VALUES (?, ?, ?, ?, ?)',
                            (self.__get_user_id(connection, username),
-                            self.__get_wallet_id(connection, wallet),
                             amount,
-                            note))
+                            self.__get_wallet_id(connection, wallet),
+                            note,
+                            datetime.now()))
         finally:
             cursor.close()
-
-    def set_balance(self, connection: Connection, username: str, amount: float, wallet: str):
-        curses = connection.cursor()
-        try:
-            curses.execute('DELETE FROM balances WHERE wallet_id = :wi', {'wi': self.__get_wallet_id(connection, wallet)})
-            curses.execute('INSERT INTO balances (user_id, balance, wallet_id) VALUES (?, ?, ?)',
-                           (self.__get_user_id(connection, username),
-                            self.__get_wallet_id(connection, wallet),
-                            amount))
-        finally:
-            curses.close()
 
     def __increase_user_balance(self, connection: Connection, username: str, amount: float, wallet: str):
         cursor = connection.cursor()
@@ -161,7 +157,7 @@ class Database:
     def write_transaction(self, username: str, amount: float, wallet: str, note: str):
         with sqlite3.connect(self.database_path) as connection:
             try:
-                self.__log_transaction(connection, username, amount, wallet, note)
+                self.__add_payment(connection, username, amount, wallet, note)
                 self.__increase_user_balance(connection, username, amount, wallet)
             except Exception:
                 connection.rollback()
