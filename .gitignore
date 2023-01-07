@@ -1,5 +1,12 @@
+# IDEA temp files
 .idea/
 __pycache__/
+
+# Python virtual env
 venv/
 
+# Database file
 db.sql3
+
+# Configuration file
+config.json
