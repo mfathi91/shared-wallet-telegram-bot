@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 from datetime import datetime
 
 from configuration import Configuration
@@ -172,3 +172,19 @@ class Database:
                     return str(round(res[1], 2)), self.__get_users(connection)[res[0]]
             finally:
                 cursor.close()
+
+    def get_payments(self, wallet: str) -> List[Tuple]:
+        payments = []
+        with sqlite3.connect(self.database_path) as connection:
+            cursor = connection.cursor()
+            try:
+                rows = cursor.execute('SELECT users.name, amount, note, dt FROM payments '
+                                      'JOIN users ON payments.payer_id = users.id '
+                                      'JOIN wallets ON payments.wallet_id = wallets.id '
+                                      'WHERE wallets.wallet = :wallet', {'wallet': wallet}).fetchall()
+                if rows:
+                    for row in rows:
+                        payments.append((row[0], row[1], row[2], row[3]))
+            finally:
+                cursor.close()
+        return payments

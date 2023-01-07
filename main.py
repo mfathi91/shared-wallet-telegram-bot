@@ -1,4 +1,9 @@
+import json
 import logging
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
 from configuration import Configuration
 from database import Database
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
@@ -18,11 +23,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Create and initialize the configuration
 config = Configuration('config.json', logger)
+
+# Create and initialize the database
 database = Database(config, 'db.sql3')
 
 WALLET, SENDER, NOTE, AMOUNT, CONFIRM = range(5)
 WALLET_BALANCE = 5
+HISTORY_END = 6
 
 
 # ------------------- update conversation functions -------------------
@@ -130,6 +139,30 @@ async def status_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+# ------------------ status conversation --------------------
+async def history_choose_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    reply_keyboard = [config.get_currencies()]
+    await update.message.reply_text(
+        'For which wallet do you want to create a report?',
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard, one_time_keyboard=True
+        ),
+    )
+    return HISTORY_END
+
+
+async def history_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    wallet = update.message.text
+    p = f'/tmp/{datetime.now()}.json'
+    with open(p, 'w') as f:
+        f.write(get_formatted_wallet_history(wallet))
+    await update.message.reply_document(
+        p,
+        filename=f'{wallet}_wallet_history.json'
+    )
+    return ConversationHandler.END
+
+
 # ----------- cancel current operation for all the conversations -------------
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.chat_data.clear()
@@ -152,6 +185,17 @@ def get_formatted_balance(wallet: str) -> str:
             return f'{amount} {config.get_symbol(wallet)}\n{creditor} ⬆️'
     return '0'
 
+
+def get_formatted_wallet_history(wallet: str) -> str:
+    result = {'payments': []}
+    payments = database.get_payments(wallet)
+    for payment in payments:
+        record = {'payer': payment[0], 'amount': payment[1], 'note': payment[2], 'datetime': payment[3]}
+        result['payments'].append(record)
+    return json.dumps(result, sort_keys=True, indent=4)
+
+
+# -------------------------------------------------------------
 
 def main():
     application = Application.builder().token(config.get_token()).build()
@@ -179,6 +223,16 @@ def main():
         fallbacks=[CommandHandler('cancel', cancel)],
     )
     application.add_handler(wallet_status_handler)
+
+    # Add conversation handler to get a report for all the payments of a wallet
+    wallet_history_handler = ConversationHandler(
+        entry_points=[CommandHandler('history', history_choose_wallet, filters.User(config.get_user_chat_ids()))],
+        states={
+            HISTORY_END: [MessageHandler(filters.Regex(f'^(Toman|Dollar|Euro)$'), history_end)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)],
+    )
+    application.add_handler(wallet_history_handler)
 
     # Start the Bot
     application.run_polling()
