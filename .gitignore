@@ -5,8 +5,7 @@ __pycache__/
 # Python virtual env
 venv/
 
-# Database file
+# Project files to ignore
 db.sql3
-
-# Configuration file
 config.json
+log.txt

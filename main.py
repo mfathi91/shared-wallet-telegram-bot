@@ -1,8 +1,6 @@
 import json
 import logging
-import tempfile
 from datetime import datetime
-from pathlib import Path
 
 from configuration import Configuration
 from database import Database
@@ -18,13 +16,18 @@ from telegram.ext import (
 )
 
 # Enable logging
+log_file = open('log.txt', 'a+')
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(log_file.name),
+        logging.StreamHandler()
+    ]
 )
-logger = logging.getLogger(__name__)
 
 # Create and initialize the configuration
-config = Configuration('config.json', logger)
+config = Configuration('config.json', logging)
 
 # Create and initialize the database
 database = Database(config, 'db.sql3')
@@ -60,7 +63,7 @@ async def update_choose_payer(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def update_enter_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.chat_data['sender'] = update.message.text
-    logger.info("Sender is: %s", update.message.text)
+    logging.info("Sender is: %s", update.message.text)
     await update.message.reply_text(
         'Ok.\n'
         f'How many {context.chat_data["wallet"]}s?',
@@ -71,7 +74,7 @@ async def update_enter_amount(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def update_enter_note(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.chat_data['amount'] = update.message.text
-    logger.info("Amount is: %s", update.message.text)
+    logging.info("Amount is: %s", update.message.text)
     await update.message.reply_text(
         'Ok.\n'
         'Do you have a note for this payment? If not, enter /skip .',
@@ -168,7 +171,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.chat_data.clear()
     """Cancels and ends the conversation."""
     user = update.message.from_user
-    logger.info("User %s canceled the conversation.", user.first_name)
+    logging.info("User %s canceled the conversation.", user.first_name)
     await update.message.reply_text(
         'Ok, the process is canceled.', reply_markup=ReplyKeyboardRemove()
     )
@@ -181,8 +184,10 @@ def get_formatted_balance(wallet: str) -> str:
     if record:
         amount = record[0]
         if amount != '0':
-            creditor = record[1]
-            return f'{amount} {config.get_symbol(wallet)}\n{creditor} ⬆️'
+            creditor_user = record[1]
+            other_user = config.get_username1() if creditor_user == config.get_username2() else config.get_username2()
+            symbol = config.get_symbol(wallet)
+            return f'{creditor_user}: {amount} {symbol}\n{other_user}: 0 {symbol}'
     return '0'
 
 
@@ -195,8 +200,7 @@ def get_formatted_wallet_history(wallet: str) -> str:
     return json.dumps(result, sort_keys=True, indent=4)
 
 
-# -------------------------------------------------------------
-
+# -------------------------------------------------
 def main():
     application = Application.builder().token(config.get_token()).build()
 
@@ -204,7 +208,7 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('update', update_choose_wallet, filters.User(config.get_user_chat_ids()))],
         states={
-            WALLET: [MessageHandler(filters.Regex(f'^(Toman|Dollar|Euro)$'), update_choose_payer)],
+            WALLET: [MessageHandler(filters.Regex(f'^({"|".join(config.get_currencies())})$'), update_choose_payer)],
             SENDER: [MessageHandler(filters.Regex(f'^({config.get_username1()}|{config.get_username2()})$'), update_enter_amount)],
             AMOUNT: [MessageHandler(filters.Regex('^[0-9]+(.[0-9]{2})?$') & ~filters.COMMAND, update_enter_note)],
             NOTE: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_confirm), CommandHandler('skip', update_confirm)],
@@ -218,7 +222,7 @@ def main():
     wallet_status_handler = ConversationHandler(
         entry_points=[CommandHandler('status', status_choose_wallet, filters.User(config.get_user_chat_ids()))],
         states={
-            WALLET_BALANCE: [MessageHandler(filters.Regex(f'^(Toman|Dollar|Euro)$'), status_end)],
+            WALLET_BALANCE: [MessageHandler(filters.Regex(f'^({"|".join(config.get_currencies())})$'), status_end)],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
@@ -228,7 +232,7 @@ def main():
     wallet_history_handler = ConversationHandler(
         entry_points=[CommandHandler('history', history_choose_wallet, filters.User(config.get_user_chat_ids()))],
         states={
-            HISTORY_END: [MessageHandler(filters.Regex(f'^(Toman|Dollar|Euro)$'), history_end)],
+            HISTORY_END: [MessageHandler(filters.Regex(f'^({"|".join(config.get_currencies())})$'), history_end)],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
