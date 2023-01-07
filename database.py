@@ -1,0 +1,178 @@
+import os
+import sqlite3
+from typing import Dict, Tuple
+
+from configuration import Configuration
+from sqlite3 import Connection
+
+
+class Database:
+
+    def __init__(self, configuration: Configuration, database_path: str):
+        self.configuration = configuration
+        self.database_path = database_path
+        self.initialize()
+
+    def initialize(self):
+        with sqlite3.connect(self.database_path) as connection:
+            cursor = connection.cursor()
+            try:
+                result = cursor.execute('SELECT name FROM sqlite_master')
+                if not result.fetchone():
+                    # Create and initialize users table
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS users (
+                            id   INTEGER PRIMARY KEY,
+                            name TEXT NOT NULL
+                        );
+                    """)
+                    for name in self.configuration.get_user_names():
+                        cursor.execute(f'INSERT INTO users (name) VALUES ("{name}")')
+
+                    # Create and initialize wallets table
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS wallets (
+                            id   INTEGER PRIMARY KEY,
+                            wallet TEXT NOT NULL
+                        );
+                    """)
+                    for wallet in self.configuration.get_currencies():
+                        cursor.execute(f'INSERT INTO wallets (wallet) VALUES ("{wallet}")')
+
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS transactions (
+                            id        INTEGER PRIMARY KEY,
+                            payer_id INTEGER,
+                            amount    INTEGER,
+                            wallet_id INTEGER,
+                            note      TEXT,
+                            FOREIGN KEY(payer_id) REFERENCES users(id),
+                            FOREIGN KEY(wallet_id) REFERENCES wallets(id)
+                        );
+                    """)
+
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS balances (
+                            id        INTEGER PRIMARY KEY,
+                            user_id   INTEGER,
+                            balance   INTEGER,
+                            wallet_id INTEGER,
+                            FOREIGN KEY(user_id) REFERENCES users(id),
+                            FOREIGN KEY(wallet_id) REFERENCES wallet(id)
+                        );
+                    """)
+
+                    connection.commit()
+            except Exception:
+                os.remove(self.database_path)
+                raise RuntimeError('Unable to create the database')
+            finally:
+                cursor.close()
+
+    @staticmethod
+    def __get_users(connection: Connection):
+        users = {}
+        cursor = connection.cursor()
+        try:
+            for user in cursor.execute('SELECT id, name FROM users'):
+                users[user[0]] = user[1]
+        finally:
+            cursor.close()
+        return users
+
+    @staticmethod
+    def __get_wallets(connection: Connection) -> Dict[int, str]:
+        wallets = {}
+        cursor = connection.cursor()
+        try:
+            for wallet in cursor.execute('SELECT id, wallet FROM wallets'):
+                wallets[wallet[0]] = wallet[1]
+        finally:
+            cursor.close()
+        return wallets
+
+    def __get_user_id(self, connection: Connection, username: str) -> int:
+        for candidate_user_id, candidate_username in self.__get_users(connection).items():
+            if candidate_username == username:
+                return candidate_user_id
+        raise ValueError(f'No user with username of "{username}" found')
+
+    def __get_wallet_id(self, connection: Connection, wallet: str) -> int:
+        for candidate_wallet_id, candidate_wallet in self.__get_wallets(connection).items():
+            if candidate_wallet == wallet:
+                return candidate_wallet_id
+        raise ValueError(f'No wallet with wallet name of "{wallet}" found')
+
+    def __log_transaction(self, connection: Connection, username: str, amount: float, wallet: str, note: str):
+        cursor = connection.cursor()
+        try:
+            cursor.execute('INSERT INTO transactions (payer_id, amount, wallet_id, note) VALUES (?, ?, ?, ?)',
+                           (self.__get_user_id(connection, username),
+                            self.__get_wallet_id(connection, wallet),
+                            amount,
+                            note))
+        finally:
+            cursor.close()
+
+    def set_balance(self, connection: Connection, username: str, amount: float, wallet: str):
+        curses = connection.cursor()
+        try:
+            curses.execute('DELETE FROM balances WHERE wallet_id = :wi', {'wi': self.__get_wallet_id(connection, wallet)})
+            curses.execute('INSERT INTO balances (user_id, balance, wallet_id) VALUES (?, ?, ?)',
+                           (self.__get_user_id(connection, username),
+                            self.__get_wallet_id(connection, wallet),
+                            amount))
+        finally:
+            curses.close()
+
+    def __increase_user_balance(self, connection: Connection, username: str, amount: float, wallet: str):
+        cursor = connection.cursor()
+        wallet_id = self.__get_wallet_id(connection, wallet)
+        try:
+            balance_row = cursor.execute('SELECT user_id, balance, wallet_id FROM balances WHERE wallet_id = :wi', {'wi': wallet_id}).fetchone()
+            if balance_row:
+                old_user_id = balance_row[0]
+                old_balance = balance_row[1]
+            else:
+                old_user_id = self.__get_user_id(connection, username)
+                old_balance = 0
+
+            # Compute new_user_id and new_balance
+            if old_user_id == self.__get_user_id(connection, username):
+                new_user_id = old_user_id
+                new_balance = old_balance + amount
+            else:
+                new_balance = old_balance - amount
+                if new_balance < 0:
+                    new_user_id = self.__get_user_id(connection, username)
+                    new_balance = -new_balance
+                else:
+                    new_user_id = old_user_id
+
+            # Persist in the database
+            if balance_row:
+                cursor.execute('UPDATE balances SET user_id = :new_uid, balance = :new_bal, wallet_id = :wi WHERE user_id = :old_uid AND wallet_id = :wi',
+                               {'new_uid': new_user_id, 'new_bal': new_balance, 'old_uid': old_user_id, 'wi': wallet_id})
+            else:
+                cursor.execute('INSERT INTO balances (user_id, balance, wallet_id) VALUES (?, ?, ?)', (new_user_id, new_balance, wallet_id))
+        finally:
+            cursor.close()
+
+    def write_transaction(self, username: str, amount: float, wallet: str, note: str):
+        with sqlite3.connect(self.database_path) as connection:
+            try:
+                self.__log_transaction(connection, username, amount, wallet, note)
+                self.__increase_user_balance(connection, username, amount, wallet)
+            except Exception:
+                connection.rollback()
+                raise RuntimeError(f'Unable to write the transaction to the database -> user: {username}, amount: {amount}, wallet: {wallet}, note: {note}')
+
+    def get_balance(self, wallet: str) -> Tuple[str, str]:
+        with sqlite3.connect(self.database_path) as connection:
+            cursor = connection.cursor()
+            try:
+                res = cursor.execute('SELECT user_id, balance FROM balances WHERE wallet_id = :wi', {'wi': self.__get_wallet_id(connection, wallet)}).fetchone()
+                if res:
+                    return str(round(res[1], 2)), self.__get_users(connection)[res[0]]
+            finally:
+                cursor.close()
