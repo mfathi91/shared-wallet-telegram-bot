@@ -1,5 +1,5 @@
 # Shared wallet Telegram bot
-One may need to send/receive money from a friend or relative every once in a while. To do that one would need to have
+One may need to send/receive money to/from a friend or relative every once in a while. To do that, one would need to keep
 an eye on the accounting of the transactions between herself and the friend, to know who owes whom, and how much.
 This bot is an attempt to do the accounting of the shared wallet(s) between two persons.
 
