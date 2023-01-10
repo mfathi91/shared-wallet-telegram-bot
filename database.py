@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from typing import Dict, Tuple, List
+from typing import Tuple, List
 from datetime import datetime
 
 from configuration import Configuration
@@ -76,81 +76,69 @@ class Database:
                 cursor.close()
 
     @staticmethod
-    def __get_users(connection: Connection):
-        users = {}
+    def __get_user_id(connection: Connection, username: str) -> int:
         cursor = connection.cursor()
-        try:
-            for user in cursor.execute('SELECT id, name FROM users'):
-                users[user[0]] = user[1]
-        finally:
-            cursor.close()
-        return users
+        row = cursor.execute('SELECT id FROM users WHERE name = :un', {'un': username}).fetchone()
+        if row:
+            return row[0]
+        else:
+            raise ValueError(f'No user with username of "{username}" found')
 
     @staticmethod
-    def __get_wallets(connection: Connection) -> Dict[int, str]:
-        wallets = {}
+    def __add_payment(connection: Connection, username: str, amount: float, wallet: str, note: str):
         cursor = connection.cursor()
         try:
-            for wallet in cursor.execute('SELECT id, wallet FROM wallets'):
-                wallets[wallet[0]] = wallet[1]
-        finally:
-            cursor.close()
-        return wallets
-
-    def __get_user_id(self, connection: Connection, username: str) -> int:
-        for candidate_user_id, candidate_username in self.__get_users(connection).items():
-            if candidate_username == username:
-                return candidate_user_id
-        raise ValueError(f'No user with username of "{username}" found')
-
-    def __get_wallet_id(self, connection: Connection, wallet: str) -> int:
-        for candidate_wallet_id, candidate_wallet in self.__get_wallets(connection).items():
-            if candidate_wallet == wallet:
-                return candidate_wallet_id
-        raise ValueError(f'No wallet with wallet name of "{wallet}" found')
-
-    def __add_payment(self, connection: Connection, username: str, amount: float, wallet: str, note: str):
-        cursor = connection.cursor()
-        try:
-            cursor.execute('INSERT INTO payments (payer_id, amount, wallet_id, note, dt) VALUES (?, ?, ?, ?, ?)',
-                           (self.__get_user_id(connection, username),
-                            amount,
-                            self.__get_wallet_id(connection, wallet),
-                            note,
-                            datetime.now()))
+            cursor.execute('INSERT INTO payments (payer_id, amount, wallet_id, note, dt) VALUES ( '
+                           '(SELECT id FROM users WHERE name = :username),'
+                           ':amount,'
+                           '(SELECT id FROM wallets WHERE wallet = :wallet),'
+                           ':note, '
+                           ':dt)',
+                           {'username': username, 'amount': amount, 'wallet': wallet, 'note': note, 'dt': datetime.now()})
         finally:
             cursor.close()
 
-    def __increase_user_balance(self, connection: Connection, username: str, amount: float, wallet: str):
+    @staticmethod
+    def __increase_user_balance(connection: Connection, payer: str, amount: float, wallet: str):
         cursor = connection.cursor()
-        wallet_id = self.__get_wallet_id(connection, wallet)
         try:
-            balance_row = cursor.execute('SELECT user_id, balance, wallet_id FROM balances WHERE wallet_id = :wi', {'wi': wallet_id}).fetchone()
-            if balance_row:
-                old_user_id = balance_row[0]
-                old_balance = balance_row[1]
-            else:
-                old_user_id = self.__get_user_id(connection, username)
-                old_balance = 0
+            # Get the user ID of the given username
+            row = cursor.execute('SELECT id FROM users WHERE name = :un', {'un': payer}).fetchone()
+            if not row:
+                raise ValueError(f'No user with username of "{payer}" found')
+            payer_user_id = row[0]
+
+            # Get the existing balance for the wallet
+            row = cursor.execute('SELECT balance, users.id AS user_id FROM balances '
+                                 'JOIN users ON balances.user_id = users.id '
+                                 'JOIN wallets ON balances.wallet_id = wallets.id '
+                                 'WHERE wallets.wallet = :wallet', {'wallet': wallet}).fetchone()
+            old_balance = row[0] if row else 0
+            old_user_id = row[1] if row else payer_user_id
 
             # Compute new_user_id and new_balance
-            if old_user_id == self.__get_user_id(connection, username):
+            if payer_user_id == old_user_id:
                 new_user_id = old_user_id
                 new_balance = old_balance + amount
             else:
                 new_balance = old_balance - amount
                 if new_balance < 0:
-                    new_user_id = self.__get_user_id(connection, username)
+                    new_user_id = payer_user_id
                     new_balance = -new_balance
                 else:
                     new_user_id = old_user_id
 
             # Persist in the database
-            if balance_row:
-                cursor.execute('UPDATE balances SET user_id = :new_uid, balance = :new_bal, wallet_id = :wi WHERE user_id = :old_uid AND wallet_id = :wi',
-                               {'new_uid': new_user_id, 'new_bal': new_balance, 'old_uid': old_user_id, 'wi': wallet_id})
+            if row:
+                cursor.execute('UPDATE balances SET user_id = :new_uid, balance = :new_bal '
+                               'WHERE user_id = :old_uid AND wallet_id = (SELECT id FROM wallets WHERE wallet = :wallet)',
+                               {'new_uid': new_user_id, 'new_bal': new_balance, 'old_uid': old_user_id,'wallet': wallet})
             else:
-                cursor.execute('INSERT INTO balances (user_id, balance, wallet_id) VALUES (?, ?, ?)', (new_user_id, new_balance, wallet_id))
+                cursor.execute('INSERT INTO balances (user_id, balance, wallet_id) VALUES ('
+                               ':new_uid, '
+                               ':new_bal, '
+                               '(SELECT id FROM wallets WHERE wallet = :wallet))',
+                               {'new_uid': new_user_id, 'new_bal': new_balance, 'wallet': wallet})
         finally:
             cursor.close()
 
@@ -167,9 +155,11 @@ class Database:
         with sqlite3.connect(self.database_path) as connection:
             cursor = connection.cursor()
             try:
-                res = cursor.execute('SELECT user_id, balance FROM balances WHERE wallet_id = :wi', {'wi': self.__get_wallet_id(connection, wallet)}).fetchone()
+                res = cursor.execute('SELECT users.name AS username, balance FROM balances '
+                                     'JOIN users ON balances.user_id = users.id '
+                                     'WHERE wallet_id = (SELECT id FROM wallets WHERE wallet = :wallet)', {'wallet': wallet}).fetchone()
                 if res:
-                    return str(round(res[1], 2)), self.__get_users(connection)[res[0]]
+                    return str(round(res[1], 2)), res[0]
             finally:
                 cursor.close()
 
