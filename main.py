@@ -57,7 +57,7 @@ async def update_choose_payer(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.chat_data['wallet'] = update.message.text
     reply_keyboard = [config.get_user_names()]
     await update.message.reply_text(
-        'Who did the payment?',
+        'Whose balance to increase?',
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True
         ),
