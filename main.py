@@ -32,6 +32,10 @@ config = Configuration('config.json', logging)
 # Create and initialize the database
 database = Database(config, 'db.sql3')
 
+# Build the application
+application = Application.builder().token(config.get_token()).build()
+
+# State of the conversations
 WALLET, SENDER, NOTE, AMOUNT, CONFIRM = range(5)
 WALLET_BALANCE = 5
 HISTORY_END = 6
@@ -112,6 +116,19 @@ async def update_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text(
             get_formatted_balance(wallet),
             reply_markup=ReplyKeyboardRemove(),
+        )
+
+        # Inform the other user about the payment
+        msg = f'Payer: {context.chat_data["sender"]}\n' \
+              f'Wallet: {wallet}\n' \
+              f'Amount: {context.chat_data["amount"]} {config.get_symbol(wallet)}\n' \
+              f'Note: {context.chat_data["note"]}\n' \
+              f'\n' \
+              f'New status:\n' \
+              f'{get_formatted_balance(wallet)}'
+        await application.bot.send_message(
+            chat_id=get_other_chat_id(update.message.chat_id),
+            text=msg
         )
     else:
         await update.message.reply_text(
@@ -200,10 +217,14 @@ def get_formatted_wallet_history(wallet: str) -> str:
     return json.dumps(result, sort_keys=True, indent=4)
 
 
+def get_other_chat_id(chat_id: int) -> str:
+    for ci in config.get_user_chat_ids():
+        if ci != chat_id:
+            return str(ci)
+    raise f'Other chat ID not found. The given chat ID: {chat_id}'
+
 # -------------------------------------------------
 def main():
-    application = Application.builder().token(config.get_token()).build()
-
     # Add conversation handler for changing a wallet
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('update', update_choose_wallet, filters.User(config.get_user_chat_ids()))],
