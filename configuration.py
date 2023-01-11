@@ -8,16 +8,26 @@ class Configuration:
         with open(config_path) as f:
             data = json.load(f)
             self.token = data['token']
+
+            # Initialize wallets
             self.wallets: List[Dict[str, str]] = data['wallets']
+            currencies = [w['currency'] for w in self.wallets]
+            if len(set(currencies)) < len(currencies):
+                raise ValueError('Configuration error: the wallet must have unique currency names.')
+
+            # Initialize users
             users = data['users']
             if len(users) != 2:
-                raise ValueError(f'Number of configured users must be 2, while it is {len(users)}')
+                raise ValueError(f'Configuration error: umber of configured users must be 2, while it is {len(users)}')
             self.username1 = data['users'][0]['name']
             self.username2 = data['users'][1]['name']
-            self.user_id1 = int(data['users'][0]['user_chat_id'])
-            self.user_id2 = int(data['users'][1]['user_chat_id'])
+            if self.username1 == self.username2:
+                raise ValueError(f'Configuration error: usernames cannot be the same.')
+            self.user_chat_id1 = int(data['users'][0]['user_chat_id'])
+            self.user_chat_id2 = int(data['users'][1]['user_chat_id'])
+
             logger.info(f'Configured users: {self.username1} and {self.username2}')
-            logger.info(f'Configured user IDs: {self.user_id1} and {self.user_id2}')
+            logger.info(f'Configured user IDs: {self.user_chat_id1} and {self.user_chat_id2}')
 
     def get_token(self) -> str:
         return self.token
@@ -32,7 +42,7 @@ class Configuration:
         return [self.username1, self.username2]
 
     def get_user_chat_ids(self) -> List[int]:
-        return [self.user_id1, self.user_id2]
+        return [self.user_chat_id1, self.user_chat_id2]
 
     def get_currencies(self) -> List[str]:
         return [w['currency'] for w in self.wallets]
