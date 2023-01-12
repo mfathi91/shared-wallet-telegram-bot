@@ -1,11 +1,9 @@
 import json
 import logging
 from datetime import datetime
+from typing import List, Tuple
 
-from configuration import Configuration
-from database import Database
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
-
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -14,6 +12,9 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+
+from configuration import Configuration
+from database import Database
 
 # Enable logging
 log_file = open('log.txt', 'a+')
@@ -158,24 +159,12 @@ async def status_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # ------------------ status conversation --------------------
 async def history_choose_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    reply_keyboard = [config.get_currencies()]
-    await update.message.reply_text(
-        'For which wallet do you want to create a report?',
-        reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard, one_time_keyboard=True
-        ),
-    )
-    return HISTORY_END
-
-
-async def history_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    wallet = update.message.text
     p = f'/tmp/{datetime.now()}.json'
     with open(p, 'w') as f:
-        f.write(get_formatted_wallet_history(wallet))
+        f.write(jsonify_payments(database.get_payments()))
     await update.message.reply_document(
         p,
-        filename=f'{wallet}_wallet_history.json'
+        filename=f'history.json'
     )
     return ConversationHandler.END
 
@@ -205,11 +194,10 @@ def get_formatted_balance(wallet: str) -> str:
     return '0'
 
 
-def get_formatted_wallet_history(wallet: str) -> str:
+def jsonify_payments(payments: List[Tuple]) -> str:
     result = {'payments': []}
-    payments = database.get_payments(wallet)
     for payment in payments:
-        record = {'payer': payment[0], 'amount': payment[1], 'note': payment[2], 'datetime': payment[3]}
+        record = {'payer': payment[0], 'amount': payment[1], 'note': payment[2], 'wallet': payment[3], 'datetime': payment[4]}
         result['payments'].append(record)
     return json.dumps(result, sort_keys=True, indent=4)
 
@@ -247,16 +235,9 @@ def main():
     )
     application.add_handler(wallet_status_handler)
 
-    # Add conversation handler to get a report for all the payments of a wallet
-    wallet_history_handler = ConversationHandler(
-        entry_points=[CommandHandler('history', history_choose_wallet, filters.User(config.get_user_chat_ids()))],
-        states={
-            HISTORY_END: [MessageHandler(filters.Regex(f'^({"|".join(config.get_currencies())})$'), history_end)],
-        },
-        fallbacks=[CommandHandler('cancel', cancel)],
-    )
+    # Add command handler to get the full history of the payments
+    wallet_history_handler = CommandHandler('history', history_choose_wallet, filters.User(config.get_user_chat_ids()))
     application.add_handler(wallet_history_handler)
-
 
     # Start the Bot
     application.run_polling()

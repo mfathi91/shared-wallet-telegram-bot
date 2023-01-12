@@ -163,18 +163,24 @@ class Database:
             finally:
                 cursor.close()
 
-    def get_payments(self, wallet: str) -> List[Tuple]:
+    def get_payments(self, wallet: str = None) -> List[Tuple]:
         payments = []
         with sqlite3.connect(self.database_path) as connection:
             cursor = connection.cursor()
             try:
-                rows = cursor.execute('SELECT users.name, amount, note, dt FROM payments '
-                                      'JOIN users ON payments.payer_id = users.id '
-                                      'JOIN wallets ON payments.wallet_id = wallets.id '
-                                      'WHERE wallets.wallet = :wallet', {'wallet': wallet}).fetchall()
+
+                if wallet:
+                    rows = cursor.execute('SELECT users.name, amount, wallets.wallet, note, dt FROM payments '
+                                          'JOIN users ON payments.payer_id = users.id '
+                                          'JOIN wallets ON payments.wallet_id = wallets.id '
+                                          'WHERE wallets.wallet = :wallet', {'wallet': wallet}).fetchall()
+                else:
+                    rows = cursor.execute('SELECT users.name, amount, wallets.wallet, note, dt FROM payments '
+                                          'JOIN users ON payments.payer_id = users.id '
+                                          'JOIN wallets ON payments.wallet_id = wallets.id').fetchall()
                 if rows:
                     for row in rows:
-                        payments.append((row[0], row[1], row[2], row[3]))
+                        payments.append((row[0], row[1], row[2], row[3], row[4]))
             finally:
                 cursor.close()
         return payments
