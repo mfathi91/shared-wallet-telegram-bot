@@ -28,7 +28,7 @@ class Database:
                             PRIMARY KEY("id")
                         );
                     """)
-                    for name in self.configuration.get_user_names():
+                    for name in self.configuration.get_usernames():
                         cursor.execute(f'INSERT INTO users (name) VALUES ("{name}")')
 
                     # Create and initialize wallets table

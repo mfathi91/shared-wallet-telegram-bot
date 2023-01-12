@@ -55,7 +55,7 @@ async def update_choose_wallet(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def update_choose_payer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.chat_data['wallet'] = update.message.text
-    reply_keyboard = [config.get_user_names()]
+    reply_keyboard = [config.get_usernames()]
     await update.message.reply_text(
         'Whose balance to increase?',
         reply_markup=ReplyKeyboardMarkup(
@@ -91,17 +91,14 @@ async def update_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     note_input = update.message.text
     context.chat_data['note'] = '-' if note_input == '/skip' else note_input
 
-    payment_wallet = context.chat_data['wallet']
-    payment_sender = context.chat_data['sender']
-    payment_note = context.chat_data['note']
-    payment_amount = context.chat_data['amount']
+    payer = context.chat_data['sender']
+    wallet = context.chat_data['wallet']
+    amount = context.chat_data['amount']
+    note = context.chat_data['note']
     reply_keyboard = [['Yes', 'No']]
     await update.message.reply_text(
         'Do you confirm the following payment?\n'
-        f'Wallet: {payment_wallet}\n'
-        f'Payer: {payment_sender}\n'
-        f'Note: {payment_note}\n'
-        f'Amount: {payment_amount}',
+        f'{format_payment(payer, amount, wallet, note)}',
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True, input_field_placeholder='Yes or No'
         ),
@@ -111,23 +108,23 @@ async def update_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def update_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message.text == 'Yes':
+        payer = context.chat_data['sender']
         wallet = context.chat_data['wallet']
-        database.write_transaction(context.chat_data['sender'], float(context.chat_data['amount']), wallet, context.chat_data['note'])
+        amount = context.chat_data['amount']
+        note = context.chat_data['note']
+        database.write_transaction(payer, float(amount), wallet, note)
         await update.message.reply_text(
             get_formatted_balance(wallet),
             reply_markup=ReplyKeyboardRemove(),
         )
 
         # Inform the other user about the payment
-        msg = f'Payer: {context.chat_data["sender"]}\n' \
-              f'Wallet: {wallet}\n' \
-              f'Amount: {context.chat_data["amount"]} {config.get_symbol(wallet)}\n' \
-              f'Note: {context.chat_data["note"]}\n' \
-              f'\n' \
+        other_username = config.get_username1() if payer == config.get_username2() else config.get_username2()
+        msg = f'{format_payment(payer, amount, wallet, note)}\n' \
               f'New status:\n' \
               f'{get_formatted_balance(wallet)}'
         await application.bot.send_message(
-            chat_id=get_other_chat_id(update.message.chat_id),
+            chat_id=config.get_chat_id(other_username),
             text=msg
         )
     else:
@@ -217,11 +214,12 @@ def get_formatted_wallet_history(wallet: str) -> str:
     return json.dumps(result, sort_keys=True, indent=4)
 
 
-def get_other_chat_id(chat_id: int) -> str:
-    for ci in config.get_user_chat_ids():
-        if ci != chat_id:
-            return str(ci)
-    raise f'Other chat ID not found. The given chat ID: {chat_id}'
+def format_payment(payer: str, amount: str, wallet: str, note: str) -> str:
+    return f'Payer: {payer}\n' \
+           f'Amount: {amount} {config.get_symbol(wallet)}\n' \
+           f'Wallet: {wallet}\n' \
+           f'Note: {note}\n'
+
 
 # -------------------------------------------------
 def main():
@@ -258,6 +256,7 @@ def main():
         fallbacks=[CommandHandler('cancel', cancel)],
     )
     application.add_handler(wallet_history_handler)
+
 
     # Start the Bot
     application.run_polling()

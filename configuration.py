@@ -16,8 +16,8 @@ class Configuration:
                 raise ValueError('Configuration error: the wallet must have unique currency names.')
 
             # Initialize users
-            users = data['users']
-            if len(users) != 2:
+            self.users = data['users']
+            if len(self.users) != 2:
                 raise ValueError(f'Configuration error: umber of configured users must be 2, while it is {len(users)}')
             self.username1 = data['users'][0]['name']
             self.username2 = data['users'][1]['name']
@@ -38,11 +38,17 @@ class Configuration:
     def get_username2(self) -> str:
         return self.username2
 
-    def get_user_names(self) -> List[str]:
+    def get_usernames(self) -> List[str]:
         return [self.username1, self.username2]
 
     def get_user_chat_ids(self) -> List[int]:
         return [self.user_chat_id1, self.user_chat_id2]
+
+    def get_chat_id(self, username) -> int:
+        for user in self.users:
+            if user['name'] == username:
+                return user['user_chat_id']
+        raise ValueError(f'Unable to find chat ID of user {username}')
 
     def get_currencies(self) -> List[str]:
         return [w['currency'] for w in self.wallets]
