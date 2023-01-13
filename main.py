@@ -157,8 +157,20 @@ async def status_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
-# ------------------ status conversation --------------------
-async def history_choose_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+# ------------------ history command --------------------
+async def last_3_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    msg = ''
+    payments = database.get_payments()
+    for p in payments[-3:]:
+        msg += f'{format_payment(p[0], p[1], p[2], p[3], p[4])}\n'
+    await update.message.reply_text(
+        msg
+    )
+    return ConversationHandler.END
+
+
+# ------------------ history command --------------------
+async def history_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     p = f'/tmp/{datetime.now()}.json'
     with open(p, 'w') as f:
         f.write(jsonify_payments(database.get_payments()))
@@ -202,11 +214,14 @@ def jsonify_payments(payments: List[Tuple]) -> str:
     return json.dumps(result, sort_keys=True, indent=4)
 
 
-def format_payment(payer: str, amount: str, wallet: str, note: str) -> str:
-    return f'Payer: {payer}\n' \
-           f'Amount: {amount} {config.get_symbol(wallet)}\n' \
-           f'Wallet: {wallet}\n' \
-           f'Note: {note}\n'
+def format_payment(payer: str, amount: str, wallet: str, note: str, date: str = None) -> str:
+    f = f'Payer: {payer}\n' \
+        f'Amount: {amount} {config.get_symbol(wallet)}\n' \
+        f'Wallet: {wallet}\n' \
+        f'Note: {note}\n'
+    if date:
+        f += f'Date: {date}\n'
+    return f
 
 
 # -------------------------------------------------
@@ -235,9 +250,11 @@ def main():
     )
     application.add_handler(wallet_status_handler)
 
+    # Add command handler to get the last three payments (regardless of the wallets)
+    application.add_handler(CommandHandler('last3', last_3_payments, filters.User(config.get_user_chat_ids())))
+
     # Add command handler to get the full history of the payments
-    wallet_history_handler = CommandHandler('history', history_choose_wallet, filters.User(config.get_user_chat_ids()))
-    application.add_handler(wallet_history_handler)
+    application.add_handler(CommandHandler('history', history_payments, filters.User(config.get_user_chat_ids())))
 
     # Start the Bot
     application.run_polling()

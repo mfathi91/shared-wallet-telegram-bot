@@ -94,7 +94,7 @@ class Database:
                            '(SELECT id FROM wallets WHERE wallet = :wallet),'
                            ':note, '
                            ':dt)',
-                           {'username': username, 'amount': amount, 'wallet': wallet, 'note': note, 'dt': datetime.now()})
+                           {'username': username, 'amount': amount, 'wallet': wallet, 'note': note, 'dt': datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')})
         finally:
             cursor.close()
 
@@ -132,7 +132,7 @@ class Database:
             if row:
                 cursor.execute('UPDATE balances SET user_id = :new_uid, balance = :new_bal '
                                'WHERE user_id = :old_uid AND wallet_id = (SELECT id FROM wallets WHERE wallet = :wallet)',
-                               {'new_uid': new_user_id, 'new_bal': new_balance, 'old_uid': old_user_id,'wallet': wallet})
+                               {'new_uid': new_user_id, 'new_bal': new_balance, 'old_uid': old_user_id, 'wallet': wallet})
             else:
                 cursor.execute('INSERT INTO balances (user_id, balance, wallet_id) VALUES ('
                                ':new_uid, '
