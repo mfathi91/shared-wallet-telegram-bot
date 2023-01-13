@@ -39,7 +39,6 @@ application = Application.builder().token(config.get_token()).build()
 # State of the conversations
 WALLET, SENDER, NOTE, AMOUNT, CONFIRM = range(5)
 WALLET_BALANCE = 5
-HISTORY_END = 6
 
 
 # ------------------- update conversation functions -------------------

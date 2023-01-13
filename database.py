@@ -1,10 +1,10 @@
 import os
 import sqlite3
-from typing import Tuple, List
 from datetime import datetime
+from sqlite3 import Connection
+from typing import Tuple, List
 
 from configuration import Configuration
-from sqlite3 import Connection
 
 
 class Database:
