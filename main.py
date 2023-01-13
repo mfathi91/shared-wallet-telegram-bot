@@ -208,9 +208,10 @@ def get_formatted_balance(wallet: str) -> str:
 def jsonify_payments(payments: List[Tuple]) -> str:
     result = {'payments': []}
     for payment in payments:
-        record = {'payer': payment[0], 'amount': payment[1], 'note': payment[2], 'wallet': payment[3], 'datetime': payment[4]}
+        wallet = payment[2]
+        record = {'payer': payment[0], 'amount': f'{payment[1]} {config.get_symbol(wallet)}', 'wallet': wallet, 'note': payment[3], 'datetime': payment[4]}
         result['payments'].append(record)
-    return json.dumps(result, sort_keys=True, indent=4)
+    return json.dumps(result, indent=4)
 
 
 def format_payment(payer: str, amount: str, wallet: str, note: str, date: str = None) -> str:
