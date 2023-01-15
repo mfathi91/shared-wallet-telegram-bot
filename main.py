@@ -158,13 +158,12 @@ async def status_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # ------------------ history command --------------------
 async def last_3_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    msg = ''
-    payments = database.get_payments()
-    for p in payments[-3:]:
-        msg += f'{format_payment(p[0], p[1], p[2], p[3], p[4])}\n'
-    await update.message.reply_text(
-        msg
-    )
+    payments = database.get_payments()[-3:]
+    if payments:
+        msg = '\n'.join(format_payment(payer=p[0], amount=p[1], wallet=p[2], note=p[3], date=p[4]) for p in payments)
+    else:
+        msg = 'No payments registered'
+    await update.message.reply_text(text=msg)
     return ConversationHandler.END
 
 
