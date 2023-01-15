@@ -10,7 +10,7 @@ This bot is an attempt to do the accounting of the shared wallet(s) between two 
 ## Example:
 Having `Julia` and `Jack` configured in `config.json`, the bot can keep the status of their balances:
 
-![alt text](diagram.png "Diagram")
+![alt text](resources/diagram.png "Diagram")
 
 ## How to use
 1. Clone the repository.
