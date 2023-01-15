@@ -18,7 +18,7 @@ class Configuration:
             # Initialize users
             self.users = data['users']
             if len(self.users) != 2:
-                raise ValueError(f'Configuration error: umber of configured users must be 2, while it is {len(users)}')
+                raise ValueError(f'Configuration error: umber of configured users must be 2, while it is {len(self.users)}')
             self.username1 = data['users'][0]['name']
             self.username2 = data['users'][1]['name']
             if self.username1 == self.username2:
