@@ -1,6 +1,8 @@
 import json
 import logging
+import os
 from datetime import datetime
+from pathlib import Path
 from typing import List, Tuple
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
@@ -16,8 +18,13 @@ from telegram.ext import (
 from configuration import Configuration
 from database import Database
 
+# Ensure the env variable is present
+volumes_dir = os.environ.get('VOLUMES_DIRECTORY', None)
+if not volumes_dir:
+    raise RuntimeError('VOLUMES_DIRECTORY not defined as an environment variable')
+
 # Enable logging
-log_file = open('log.txt', 'a+')
+log_file = open(Path(volumes_dir, 'log.txt'), 'a+')
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -28,10 +35,10 @@ logging.basicConfig(
 )
 
 # Create and initialize the configuration
-config = Configuration('config.json', logging)
+config = Configuration(str(Path(volumes_dir, 'config.json')), logging)
 
 # Create and initialize the database
-database = Database(config, 'db.sql3')
+database = Database(config, str(Path(volumes_dir, 'db.sq3')))
 
 # Build the application
 application = Application.builder().token(config.get_token()).build()
