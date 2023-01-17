@@ -19,17 +19,17 @@ from configuration import Configuration
 from database import Database
 
 # Ensure the env variable is present
-volumes_dir = os.environ.get('VOLUMES_DIRECTORY', None)
-if not volumes_dir:
+volumes_dir_env = os.environ.get('VOLUMES_DIRECTORY', None)
+if not volumes_dir_env:
     raise RuntimeError('VOLUMES_DIRECTORY not defined as an environment variable')
+volumes_dir = Path(volumes_dir_env)
 
 # Enable logging
-log_file = open(Path(volumes_dir, 'log.txt'), 'a+')
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler(log_file.name),
+        logging.FileHandler(Path.joinpath(volumes_dir, 'log.txt')),
         logging.StreamHandler()
     ]
 )
