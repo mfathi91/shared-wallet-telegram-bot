@@ -6,6 +6,4 @@ __pycache__/
 venv/
 
 # Project files to ignore
-db.sql3
-config.json
-log.txt
+volumes/
