@@ -3,7 +3,7 @@ version: "3"
 services:
   wallet:
     build: app
-    image: ghcr.io/mfathi91/shared-wallet-telegram-bot:0.1
+    image: ghcr.io/mfathi91/shared-wallet-telegram-bot
     volumes:
       - ./app:/usr/src/app
       - ./volumes:/volumes
