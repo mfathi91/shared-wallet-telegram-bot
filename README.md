@@ -1,18 +1,17 @@
 # Shared wallet Telegram bot
-One may need to send/receive money to/from a friend or relative every once in a while. To do that, one would need to keep
-an eye on the accounting of the transactions between herself and the friend, to know who owes whom, and how much.
-This bot is an attempt to do the accounting of the shared wallet(s) between two persons.
+This is a Telegram bot to do money accounting between two persons. If you lend/borrow some money to/from someone, you'd want to keep an eye on
+how much each person owes the other one. This bot does this accounting for you.
 
 ## Notes:
-* After running your instance of this bot, it will be private to the two persons whose chat IDs are configured in `volumes/cinfig.json`.  
 * The bot can manage multiple wallets, e.g. Dollar, Euro, Pound, ... . This can be configured in `volumes/config.json`.
+* The bot will be private to the two persons whose chat IDs is configured in `volumes/cinfig.json`.  
 
 ## Example:
-Having `Julia` and `Jack` configured in `config.json`, the bot can keep the status of their balances:
+Having `Julia` and `Jack` configured in `volumes/config.json`, the bot can keep the status of their balances:
 
 ![alt text](resources/diagram.png "Diagram")
 
-## How to use
+## How to run
 1. Clone the repository. 
-2. Set the correct configuration in `volumes/config.json`. Hint: you can use `https://t.me/myidbot` to get your chat ID.
-3. On the root directory of the project run `docker-compose up -d`.
+2. Configure the bot in `volumes/config.json`. Hint: use `https://t.me/myidbot` to get your chat ID.
+3. Run `docker-compose up -d` on the repository's root directory.
