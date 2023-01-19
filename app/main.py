@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple
@@ -25,12 +26,15 @@ if not volumes_dir_env:
 volumes_dir = Path(volumes_dir_env)
 
 # Enable logging
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)
+file_handler = logging.FileHandler(Path.joinpath(volumes_dir, 'log.txt'))
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler(Path.joinpath(volumes_dir, 'log.txt')),
-        logging.StreamHandler()
+        console_handler,
+        file_handler
     ]
 )
 
@@ -50,6 +54,7 @@ WALLET_BALANCE = 5
 
 # ------------------- update conversation functions -------------------
 async def update_choose_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    logging.info("User %s issued /update command", update.message.from_user.first_name)
     reply_keyboard = [config.get_currencies()]
     await update.message.reply_text(
         'Which wallet do you want to change?',
@@ -74,7 +79,6 @@ async def update_choose_payer(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def update_enter_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.chat_data['sender'] = update.message.text
-    logging.info("Sender is: %s", update.message.text)
     await update.message.reply_text(
         'Ok.\n'
         f'How many {context.chat_data["wallet"]}s?',
@@ -85,7 +89,6 @@ async def update_enter_amount(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def update_enter_note(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.chat_data['amount'] = update.message.text
-    logging.info("Amount is: %s", update.message.text)
     await update.message.reply_text(
         'Ok.\n'
         'Do you have a note for this payment? If not, enter /skip .',
@@ -119,6 +122,8 @@ async def update_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         wallet = context.chat_data['wallet']
         amount = context.chat_data['amount']
         note = context.chat_data['note']
+        logging.info('User %s finalized /update command. Parameters: %s',
+                     update.message.from_user.first_name, json.dumps({'payer': payer, 'wallet': wallet, 'amount': amount, 'note': note}))
         database.write_transaction(payer, float(amount), wallet, note)
         await update.message.reply_text(
             get_formatted_balance(wallet),
@@ -144,6 +149,7 @@ async def update_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # ------------------ status conversation --------------------
 async def status_choose_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    logging.info("User %s issued /status command", update.message.from_user.first_name)
     reply_keyboard = [config.get_currencies()]
     await update.message.reply_text(
         'Which wallet do you want to see?',
@@ -165,6 +171,7 @@ async def status_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # ------------------ history command --------------------
 async def last_3_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    logging.info("User %s issued /last3 command", update.message.from_user.first_name)
     payments = database.get_payments()[-3:]
     if payments:
         msg = '\n'.join(format_payment(payer=p[0], amount=p[1], wallet=p[2], note=p[3], date=p[4]) for p in payments)
@@ -176,6 +183,7 @@ async def last_3_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 # ------------------ history command --------------------
 async def history_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    logging.info("User %s issued /history command", update.message.from_user.first_name)
     p = f'/tmp/{datetime.now()}.json'
     with open(p, 'w') as f:
         f.write(jsonify_payments(database.get_payments()))
@@ -188,10 +196,8 @@ async def history_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 # ----------- cancel current operation for all the conversations -------------
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    logging.info("User %s issued /cancel command", update.message.from_user.first_name)
     context.chat_data.clear()
-    """Cancels and ends the conversation."""
-    user = update.message.from_user
-    logging.info("User %s canceled the conversation.", user.first_name)
     await update.message.reply_text(
         'Ok, the process is canceled.', reply_markup=ReplyKeyboardRemove()
     )
