@@ -234,7 +234,7 @@ def format_payment(payer: str, amount: str, wallet: str, note: str, date: str = 
 def main():
     # Add conversation handler for changing a wallet
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('update', update_choose_wallet, filters.User(config.get_user_chat_ids()))],
+        entry_points=[CommandHandler('update', update_choose_wallet, filters.User(config.get_chat_ids()))],
         states={
             WALLET: [MessageHandler(filters.Regex(f'^({"|".join(config.get_currencies())})$'), update_choose_payer)],
             SENDER: [MessageHandler(filters.Regex(f'^({config.get_username1()}|{config.get_username2()})$'), update_enter_amount)],
@@ -248,7 +248,7 @@ def main():
 
     # Add conversation handler for getting wallet status
     wallet_status_handler = ConversationHandler(
-        entry_points=[CommandHandler('status', status_choose_wallet, filters.User(config.get_user_chat_ids()))],
+        entry_points=[CommandHandler('status', status_choose_wallet, filters.User(config.get_chat_ids()))],
         states={
             WALLET_BALANCE: [MessageHandler(filters.Regex(f'^({"|".join(config.get_currencies())})$'), status_end)],
         },
@@ -257,10 +257,10 @@ def main():
     application.add_handler(wallet_status_handler)
 
     # Add command handler to get the last three payments (regardless of the wallets)
-    application.add_handler(CommandHandler('last3', last_3_payments, filters.User(config.get_user_chat_ids())))
+    application.add_handler(CommandHandler('last3', last_3_payments, filters.User(config.get_chat_ids())))
 
     # Add command handler to get the full history of the payments
-    application.add_handler(CommandHandler('history', history_payments, filters.User(config.get_user_chat_ids())))
+    application.add_handler(CommandHandler('history', history_payments, filters.User(config.get_chat_ids())))
 
     # Start the Bot
     application.run_polling()
