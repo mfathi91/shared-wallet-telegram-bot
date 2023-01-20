@@ -155,9 +155,10 @@ class Database:
         with sqlite3.connect(self.database_path) as connection:
             cursor = connection.cursor()
             try:
-                res = cursor.execute('SELECT users.name AS username, balance FROM balances '
+                res = cursor.execute('SELECT users.name AS username, balance, wallets.wallet AS wallet FROM balances '
                                      'JOIN users ON balances.user_id = users.id '
-                                     'WHERE wallet_id = (SELECT id FROM wallets WHERE wallet = :wallet)', {'wallet': wallet}).fetchone()
+                                     'JOIN wallets ON balances.wallet_id = wallets.id '
+                                     'WHERE wallet = :wallet', {'wallet': wallet}).fetchone()
                 if res:
                     return str(round(res[1], 2)), res[0]
             finally:
