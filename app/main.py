@@ -48,7 +48,7 @@ database = Database(config, str(Path(volumes_dir, 'db.sq3')))
 application = Application.builder().token(config.get_token()).build()
 
 # State of the conversations
-WALLET, SENDER, NOTE, AMOUNT, CONFIRM = range(5)
+WALLET, PAYER, NOTE, AMOUNT, CONFIRM = range(5)
 WALLET_BALANCE = 5
 
 
@@ -74,11 +74,11 @@ async def update_choose_payer(update: Update, context: ContextTypes.DEFAULT_TYPE
             reply_keyboard, one_time_keyboard=True
         ),
     )
-    return SENDER
+    return PAYER
 
 
 async def update_enter_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.chat_data['sender'] = update.message.text
+    context.chat_data['payer'] = update.message.text
     await update.message.reply_text(
         'Ok.\n'
         f'How many {context.chat_data["wallet"]}s?',
@@ -101,7 +101,7 @@ async def update_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     note_input = update.message.text
     context.chat_data['note'] = '-' if note_input == '/skip' else note_input
 
-    payer = context.chat_data['sender']
+    payer = context.chat_data['payer']
     wallet = context.chat_data['wallet']
     amount = context.chat_data['amount']
     note = context.chat_data['note']
@@ -118,7 +118,7 @@ async def update_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def update_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message.text == 'Yes':
-        payer = context.chat_data['sender']
+        payer = context.chat_data['payer']
         wallet = context.chat_data['wallet']
         amount = context.chat_data['amount']
         note = context.chat_data['note']
@@ -243,7 +243,7 @@ def main():
         entry_points=[CommandHandler('update', update_choose_wallet, filters.User(config.get_chat_ids()))],
         states={
             WALLET: [MessageHandler(filters.Regex(f'^({"|".join(config.get_currencies())})$'), update_choose_payer)],
-            SENDER: [MessageHandler(filters.Regex(f'^({"|".join(config.get_usernames())})$'), update_enter_amount)],
+            PAYER: [MessageHandler(filters.Regex(f'^({"|".join(config.get_usernames())})$'), update_enter_amount)],
             AMOUNT: [MessageHandler(filters.Regex('^[0-9]+(.[0-9]{2})?$') & ~filters.COMMAND, update_enter_note)],
             NOTE: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_confirm), CommandHandler('skip', update_confirm)],
             CONFIRM: [MessageHandler(filters.Regex('^(Yes|No)$'), update_end)],
