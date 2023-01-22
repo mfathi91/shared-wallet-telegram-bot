@@ -3,9 +3,12 @@ version: "3"
 services:
   wallet:
     build: app
-    image: ghcr.io/mfathi91/shared-wallet-telegram-bot:0.2
+    image: ghcr.io/mfathi91/shared-wallet-telegram-bot:${VERSION}
     volumes:
       - ./app:/usr/src/app
-      - ./volumes:/volumes
+      - ./volumes:${VOLUMES_DIRECTORY}
+
+    # Pass the required env variables to the application code
     environment:
-      - VOLUMES_DIRECTORY=/volumes
+      - VOLUMES_DIRECTORY=${VOLUMES_DIRECTORY}
+      - VERSION=${VERSION}

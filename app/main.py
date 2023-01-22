@@ -20,7 +20,10 @@ from configuration import Configuration
 from database import Database
 
 # Ensure the env variable is present
+version_env = os.environ.get('VERSION', None)
 volumes_dir_env = os.environ.get('VOLUMES_DIRECTORY', None)
+if not version_env:
+    raise RuntimeError('VERSION not defined as an environment variable')
 if not volumes_dir_env:
     raise RuntimeError('VOLUMES_DIRECTORY not defined as an environment variable')
 volumes_dir = Path(volumes_dir_env)
@@ -45,6 +48,7 @@ config = Configuration(str(Path(volumes_dir, 'config.json')), logging)
 database = Database(config, str(Path(volumes_dir, 'db.sq3')))
 
 # Build the application
+logging.info(f'Detected version: {version_env}')
 application = Application.builder().token(config.get_token()).build()
 
 # State of the conversations
