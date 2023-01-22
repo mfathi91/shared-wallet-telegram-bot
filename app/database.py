@@ -10,12 +10,12 @@ from configuration import Configuration
 class Database:
 
     def __init__(self, configuration: Configuration, database_path: str):
-        self.configuration = configuration
-        self.database_path = database_path
-        self.initialize()
+        self._configuration = configuration
+        self._database_path = database_path
+        self._initialize()
 
-    def initialize(self):
-        with sqlite3.connect(self.database_path) as connection:
+    def _initialize(self):
+        with sqlite3.connect(self._database_path) as connection:
             cursor = connection.cursor()
             try:
                 result = cursor.execute('SELECT name FROM sqlite_master')
@@ -28,7 +28,7 @@ class Database:
                             PRIMARY KEY("id")
                         );
                     """)
-                    for name in self.configuration.get_usernames():
+                    for name in self._configuration.get_usernames():
                         cursor.execute(f'INSERT INTO users (name) VALUES ("{name}")')
 
                     # Create and initialize wallets table
@@ -39,7 +39,7 @@ class Database:
                             PRIMARY KEY("id")
                         );
                     """)
-                    for wallet in self.configuration.get_currencies():
+                    for wallet in self._configuration.get_currencies():
                         cursor.execute(f'INSERT INTO wallets (wallet) VALUES ("{wallet}")')
 
                     cursor.execute("""
@@ -70,13 +70,13 @@ class Database:
 
                     connection.commit()
             except Exception:
-                os.remove(self.database_path)
+                os.remove(self._database_path)
                 raise RuntimeError('Unable to create the database')
             finally:
                 cursor.close()
 
     @staticmethod
-    def __get_user_id(connection: Connection, username: str) -> int:
+    def _get_user_id(connection: Connection, username: str) -> int:
         cursor = connection.cursor()
         row = cursor.execute('SELECT id FROM users WHERE name = :un', {'un': username}).fetchone()
         if row:
@@ -85,7 +85,7 @@ class Database:
             raise ValueError(f'No user with username of "{username}" found')
 
     @staticmethod
-    def __add_payment(connection: Connection, username: str, amount: float, wallet: str, note: str):
+    def _add_payment(connection: Connection, username: str, amount: float, wallet: str, note: str):
         cursor = connection.cursor()
         try:
             cursor.execute('INSERT INTO payments (payer_id, amount, wallet_id, note, dt) VALUES ( '
@@ -99,7 +99,7 @@ class Database:
             cursor.close()
 
     @staticmethod
-    def __increase_user_balance(connection: Connection, payer: str, amount: float, wallet: str):
+    def _increase_user_balance(connection: Connection, payer: str, amount: float, wallet: str):
         cursor = connection.cursor()
         try:
             # Get the user ID of the given username
@@ -143,16 +143,16 @@ class Database:
             cursor.close()
 
     def write_transaction(self, username: str, amount: float, wallet: str, note: str):
-        with sqlite3.connect(self.database_path) as connection:
+        with sqlite3.connect(self._database_path) as connection:
             try:
-                self.__add_payment(connection, username, amount, wallet, note)
-                self.__increase_user_balance(connection, username, amount, wallet)
+                self._add_payment(connection, username, amount, wallet, note)
+                self._increase_user_balance(connection, username, amount, wallet)
             except Exception:
                 connection.rollback()
                 raise RuntimeError(f'Unable to write the transaction to the database -> user: {username}, amount: {amount}, wallet: {wallet}, note: {note}')
 
     def get_balance(self, wallet: str) -> Tuple[str, str]:
-        with sqlite3.connect(self.database_path) as connection:
+        with sqlite3.connect(self._database_path) as connection:
             cursor = connection.cursor()
             try:
                 res = cursor.execute('SELECT users.name AS username, balance, wallets.wallet AS wallet FROM balances '
@@ -166,7 +166,7 @@ class Database:
 
     def get_payments(self, wallet: str = None) -> List[Tuple]:
         payments = []
-        with sqlite3.connect(self.database_path) as connection:
+        with sqlite3.connect(self._database_path) as connection:
             cursor = connection.cursor()
             try:
 
