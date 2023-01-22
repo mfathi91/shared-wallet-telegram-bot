@@ -131,12 +131,12 @@ async def update_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
 
         # Inform the other user about the payment
-        other_username = config.get_username1() if payer == config.get_username2() else config.get_username2()
+        payee = config.get_other_username(payer)
         msg = f'{format_payment(payer, amount, wallet, note)}\n' \
               f'New status:\n' \
               f'{get_formatted_balance(wallet)}'
         await application.bot.send_message(
-            chat_id=config.get_chat_id(other_username),
+            chat_id=config.get_chat_id(payee),
             text=msg
         )
     else:
@@ -210,10 +210,10 @@ def get_formatted_balance(wallet: str) -> str:
     if record:
         amount = record[0]
         if amount != '0':
-            creditor_user = record[1]
-            other_user = config.get_username1() if creditor_user == config.get_username2() else config.get_username2()
+            creditor = record[1]
+            debtor = config.get_other_username(creditor)
             symbol = config.get_symbol(wallet)
-            return f'{creditor_user}: {amount} {symbol}\n{other_user}: 0 {symbol}'
+            return f'{creditor}: {amount} {symbol}\n{debtor}: 0 {symbol}'
     return '0'
 
 
@@ -243,7 +243,7 @@ def main():
         entry_points=[CommandHandler('update', update_choose_wallet, filters.User(config.get_chat_ids()))],
         states={
             WALLET: [MessageHandler(filters.Regex(f'^({"|".join(config.get_currencies())})$'), update_choose_payer)],
-            SENDER: [MessageHandler(filters.Regex(f'^({config.get_username1()}|{config.get_username2()})$'), update_enter_amount)],
+            SENDER: [MessageHandler(filters.Regex(f'^({"|".join(config.get_usernames())})$'), update_enter_amount)],
             AMOUNT: [MessageHandler(filters.Regex('^[0-9]+(.[0-9]{2})?$') & ~filters.COMMAND, update_enter_note)],
             NOTE: [MessageHandler(filters.TEXT & ~filters.COMMAND, update_confirm), CommandHandler('skip', update_confirm)],
             CONFIRM: [MessageHandler(filters.Regex('^(Yes|No)$'), update_end)],

@@ -10,51 +10,57 @@ class Configuration:
             self.token = data['token']
 
             # Initialize wallets
-            self.wallets: List[Dict[str, str]] = data['wallets']
-            currencies = [w['currency'] for w in self.wallets]
+            self._wallets: List[Dict[str, str]] = data['wallets']
+            currencies = [w['currency'] for w in self._wallets]
             if len(set(currencies)) < len(currencies):
                 raise ValueError('Configuration error: the wallet must have unique currency names.')
 
-            # Initialize users
-            self.users = data['users']
-            if len(self.users) != 2:
-                raise ValueError(f'Configuration error: umber of configured users must be 2, while it is {len(self.users)}')
-            self.username1 = data['users'][0]['name']
-            self.username2 = data['users'][1]['name']
-            if self.username1 == self.username2:
+            # Validate and initialize users
+            self._users = data['users']
+            if len(self._users) != 2:
+                raise ValueError(f'Configuration error: number of configured users must be 2, while it is {len(self._users)}')
+            self._user1 = data['users'][0]
+            self._user2 = data['users'][1]
+            if 'name' not in self._user1 or 'name' not in self._user2:
+                raise ValueError(f'Configuration error: "name" not defined in at least one user.')
+            if 'chat_id' not in self._user1 or 'chat_id' not in self._user2:
+                raise ValueError(f'Configuration error: "chat_id" not defined in at least one user.')
+            if self._user1['name'] == self._user2['name']:
                 raise ValueError(f'Configuration error: usernames cannot be the same.')
-            self.chat_id1 = int(data['users'][0]['chat_id'])
-            self.chat_id2 = int(data['users'][1]['chat_id'])
 
-            logger.info(f'Configured users: {self.username1} and {self.username2}')
-            logger.info(f'Configured user IDs: {self.chat_id1} and {self.chat_id2}')
+            logger.info(f'Configured users: {self._user1["name"]} and {self._user2["name"]}')
+            logger.info(f'Configured user IDs: {self._user2["chat_id"]} and {self._user2["chat_id"]}')
 
     def get_token(self) -> str:
         return self.token
 
-    def get_username1(self) -> str:
-        return self.username1
-
-    def get_username2(self) -> str:
-        return self.username2
-
     def get_usernames(self) -> List[str]:
-        return [self.username1, self.username2]
+        return [self._user1['name'], self._user2['name']]
+
+    def get_other_username(self, username: str) -> str:
+        if username == self._user1['name']:
+            return self._user2['name']
+        elif username == self._user2['name']:
+            return self._user1['name']
+        else:
+            assert False, f'Unable to find other username of: {username}'
 
     def get_chat_ids(self) -> List[int]:
-        return [self.chat_id1, self.chat_id2]
+        return [int(self._user1['chat_id']), int(self._user2['chat_id'])]
 
     def get_chat_id(self, username) -> int:
-        for user in self.users:
-            if user['name'] == username:
-                return user['chat_id']
-        raise ValueError(f'Unable to find chat ID of user {username}')
+        if username == self._user1['name']:
+            return int(self._user1['chat_id'])
+        elif username == self._user2['name']:
+            return int(self._user2['chat_id'])
+        else:
+            assert False, f'Unable to find other username of: {username}'
 
     def get_currencies(self) -> List[str]:
-        return [w['currency'] for w in self.wallets]
+        return [w['currency'] for w in self._wallets]
 
     def get_symbol(self, currency: str) -> str:
-        for w in self.wallets:
+        for w in self._wallets:
             if w['currency'] == currency:
                 return w['symbol']
         raise ValueError(f'Unknown currency {currency}')
