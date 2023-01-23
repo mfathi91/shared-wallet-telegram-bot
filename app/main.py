@@ -135,12 +135,12 @@ async def update_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
 
         # Inform the other user about the payment
-        payee = config.get_other_username(payer)
+        other = config.get_other_chat_id(update.message.chat_id)
         msg = f'{format_payment(payer, amount, wallet, note)}\n' \
               f'New status:\n' \
               f'{get_formatted_balance(wallet)}'
         await application.bot.send_message(
-            chat_id=config.get_chat_id(payee),
+            chat_id=other,
             text=msg
         )
     else:

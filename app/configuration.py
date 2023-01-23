@@ -56,6 +56,14 @@ class Configuration:
         else:
             assert False, f'Unable to find other username of: {username}'
 
+    def get_other_chat_id(self, chat_id: int) -> str:
+        if chat_id == self._user1['chat_id']:
+            return self._user2['chat_id']
+        elif chat_id == self._user2['chat_id']:
+            return self._user1['chat_id']
+        else:
+            assert False, f'Unable to find other chat_id of: {chat_id}'
+
     def get_currencies(self) -> List[str]:
         return [w['currency'] for w in self._wallets]
 
