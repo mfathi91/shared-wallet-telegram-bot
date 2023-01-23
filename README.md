@@ -9,7 +9,7 @@ how much each person owes the other one. This bot does this accounting for you.
 ## Example:
 Having `Julia` and `Jack` configured in `volumes/config.json`, the bot can keep the status of their balances:
 
-![alt text](resources/diagram.png "Diagram")
+![alt text](diagram.png "Diagram")
 
 ## How to run
 1. Clone the repository. 
