@@ -14,4 +14,4 @@ Having `Julia` and `Jack` configured in `volumes/config.json`, the bot can keep 
 ## How to run
 1. Clone the repository. 
 2. Configure the bot in `volumes/config.json`. Hint: use `https://t.me/myidbot` to get your chat ID.
-3. Run `docker-compose up -d` on the repository's root directory.
+3. Run `docker compose up -d` on the repository's root directory.
