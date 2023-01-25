@@ -198,6 +198,13 @@ async def history_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return ConversationHandler.END
 
 
+# ------------------ about command --------------------
+async def about_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    logging.info("User %s issued /about command", update.message.from_user.first_name)
+    await update.message.reply_text(text=f'Shared wallet Telegram Bot v{version_env}')
+    return ConversationHandler.END
+
+
 # ----------- cancel current operation for all the conversations -------------
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     logging.info("User %s issued /cancel command", update.message.from_user.first_name)
@@ -271,6 +278,9 @@ def main():
 
     # Add command handler to get the full history of the payments
     application.add_handler(CommandHandler('history', history_payments, filters.User(config.get_chat_ids())))
+
+    # Add command handler to get general information about the bot
+    application.add_handler(CommandHandler('about', about_handler, filters.User(config.get_chat_ids())))
 
     # Start the Bot
     application.run_polling()
