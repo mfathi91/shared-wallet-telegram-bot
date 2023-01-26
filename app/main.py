@@ -173,7 +173,7 @@ async def status_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
-# ------------------ history command --------------------
+# ------------------ last 3 command --------------------
 async def last_3_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     logging.info("User %s issued /last3 command", update.message.from_user.first_name)
     payments = database.get_payments()[-3:]
