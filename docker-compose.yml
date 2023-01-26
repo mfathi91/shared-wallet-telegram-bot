@@ -5,7 +5,6 @@ services:
     build: app
     image: ghcr.io/mfathi91/shared-wallet-telegram-bot:${VERSION}
     volumes:
-      - ./app:/usr/src/app
       - ./volumes:${VOLUMES_DIRECTORY}
 
     # Pass the required env variables to the application code
