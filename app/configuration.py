@@ -46,20 +46,20 @@ class Configuration:
             assert False, f'Unable to find other username of: {username}'
 
     def get_chat_ids(self) -> List[int]:
-        return [int(self._user1['chat_id']), int(self._user2['chat_id'])]
+        return [self._user1['chat_id'], self._user2['chat_id']]
 
     def get_chat_id(self, username) -> int:
         if username == self._user1['name']:
-            return int(self._user1['chat_id'])
+            return self._user1['chat_id']
         elif username == self._user2['name']:
-            return int(self._user2['chat_id'])
+            return self._user2['chat_id']
         else:
             assert False, f'Unable to find other username of: {username}'
 
     def get_other_chat_id(self, chat_id: int) -> str:
-        if chat_id == int(self._user1['chat_id']):
+        if chat_id == self._user1['chat_id']:
             return self._user2['chat_id']
-        elif chat_id == int(self._user2['chat_id']):
+        elif chat_id == self._user2['chat_id']:
             return self._user1['chat_id']
         else:
             assert False, f'Unable to find other chat_id of: {chat_id}'
