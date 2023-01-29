@@ -223,7 +223,7 @@ def get_formatted_balance(wallet: str) -> str:
         if amount != '0':
             creditor = record[1]
             debtor = config.get_other_username(creditor)
-            symbol = config.get_symbol(wallet)
+            symbol = config.get_wallet_symbol(wallet)
             return f'{creditor}: {amount} {symbol}\n{debtor}: 0 {symbol}'
     return '0'
 
@@ -232,14 +232,14 @@ def jsonify_payments(payments: List[Tuple]) -> str:
     result = {'payments': []}
     for payment in payments:
         wallet = payment[2]
-        record = {'payer': payment[0], 'amount': f'{payment[1]} {config.get_symbol(wallet)}', 'wallet': wallet, 'note': payment[3], 'datetime': payment[4]}
+        record = {'payer': payment[0], 'amount': f'{payment[1]} {config.get_wallet_symbol(wallet)}', 'wallet': wallet, 'note': payment[3], 'datetime': payment[4]}
         result['payments'].append(record)
     return json.dumps(result, indent=4)
 
 
 def format_payment(payer: str, amount: str, wallet: str, note: str, date: str = None) -> str:
     f = f'Payer: {payer}\n' \
-        f'Amount: {amount} {config.get_symbol(wallet)}\n' \
+        f'Amount: {amount} {config.get_wallet_symbol(wallet)}\n' \
         f'Wallet: {wallet}\n' \
         f'Note: {note}\n'
     if date:
