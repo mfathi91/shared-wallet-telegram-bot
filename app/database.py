@@ -5,6 +5,7 @@ from sqlite3 import Connection
 from typing import Tuple, List
 
 from configuration import Configuration
+from payment import Payment
 
 
 class Database:
@@ -85,7 +86,7 @@ class Database:
             raise ValueError(f'No user with username of "{username}" found')
 
     @staticmethod
-    def _add_payment(connection: Connection, username: str, amount: float, wallet: str, note: str):
+    def _add_payment(connection: Connection, payment: Payment):
         cursor = connection.cursor()
         try:
             cursor.execute('INSERT INTO payments (payer_id, amount, wallet_id, note, dt) VALUES ( '
@@ -94,28 +95,30 @@ class Database:
                            '(SELECT id FROM wallets WHERE wallet = :wallet),'
                            ':note, '
                            ':dt)',
-                           {'username': username, 'amount': amount, 'wallet': wallet, 'note': note, 'dt': datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')})
+                           {'username': payment.payer, 'amount': float(payment.amount), 'wallet': payment.wallet,
+                            'note': payment.note, 'dt': datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S')})
         finally:
             cursor.close()
 
     @staticmethod
-    def _increase_user_balance(connection: Connection, payer: str, amount: float, wallet: str):
+    def _increase_user_balance(connection: Connection, payment: Payment):
         cursor = connection.cursor()
         try:
             # Get the user ID of the given username
-            row = cursor.execute('SELECT id FROM users WHERE name = :un', {'un': payer}).fetchone()
+            row = cursor.execute('SELECT id FROM users WHERE name = :un', {'un': payment.payer}).fetchone()
             if not row:
-                raise ValueError(f'No user with username of "{payer}" found')
+                raise ValueError(f'No user with username of "{payment.payer}" found')
             payer_user_id = row[0]
 
             # Get the existing balance for the wallet
             row = cursor.execute('SELECT balance, users.id AS user_id FROM balances '
                                  'JOIN users ON balances.user_id = users.id '
                                  'JOIN wallets ON balances.wallet_id = wallets.id '
-                                 'WHERE wallets.wallet = :wallet', {'wallet': wallet}).fetchone()
+                                 'WHERE wallets.wallet = :wallet', {'wallet': payment.wallet}).fetchone()
             old_balance = row[0] if row else 0
             old_user_id = row[1] if row else payer_user_id
 
+            amount = float(payment.amount)
             # Compute new_user_id and new_balance
             if payer_user_id == old_user_id:
                 new_user_id = old_user_id
@@ -132,24 +135,24 @@ class Database:
             if row:
                 cursor.execute('UPDATE balances SET user_id = :new_uid, balance = :new_bal '
                                'WHERE user_id = :old_uid AND wallet_id = (SELECT id FROM wallets WHERE wallet = :wallet)',
-                               {'new_uid': new_user_id, 'new_bal': new_balance, 'old_uid': old_user_id, 'wallet': wallet})
+                               {'new_uid': new_user_id, 'new_bal': new_balance, 'old_uid': old_user_id, 'wallet': payment.wallet})
             else:
                 cursor.execute('INSERT INTO balances (user_id, balance, wallet_id) VALUES ('
                                ':new_uid, '
                                ':new_bal, '
                                '(SELECT id FROM wallets WHERE wallet = :wallet))',
-                               {'new_uid': new_user_id, 'new_bal': new_balance, 'wallet': wallet})
+                               {'new_uid': new_user_id, 'new_bal': new_balance, 'wallet': payment.wallet})
         finally:
             cursor.close()
 
-    def write_transaction(self, username: str, amount: float, wallet: str, note: str):
+    def write_transaction(self, payment: Payment):
         with sqlite3.connect(self._database_path) as connection:
             try:
-                self._add_payment(connection, username, amount, wallet, note)
-                self._increase_user_balance(connection, username, amount, wallet)
+                self._add_payment(connection, payment)
+                self._increase_user_balance(connection, payment)
             except Exception:
                 connection.rollback()
-                raise RuntimeError(f'Unable to write the transaction to the database -> user: {username}, amount: {amount}, wallet: {wallet}, note: {note}')
+                raise RuntimeError(f'Unable to write the payment to the database: {payment}')
 
     def get_balance(self, wallet: str) -> Tuple[str, str]:
         with sqlite3.connect(self._database_path) as connection:

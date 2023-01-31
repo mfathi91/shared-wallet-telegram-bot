@@ -18,6 +18,7 @@ from telegram.ext import (
 
 from configuration import Configuration
 from database import Database
+from payment import Payment
 
 # Ensure the env variable is present
 version_env = os.environ.get('VERSION', None)
@@ -105,14 +106,13 @@ async def update_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     note_input = update.message.text
     context.chat_data['note'] = '-' if note_input == '/skip' else note_input
 
-    payer = context.chat_data['payer']
-    wallet = context.chat_data['wallet']
-    amount = context.chat_data['amount']
-    note = context.chat_data['note']
+    cd = context.chat_data
+    payment = Payment(cd['payer'], cd['amount'], cd['wallet'], config.get_wallet_symbol(cd['wallet']), cd['note'])
+    cd['payment'] = payment
     reply_keyboard = [['Yes', 'No']]
     await update.message.reply_text(
         'Do you confirm the following payment?\n'
-        f'{format_payment(payer, amount, wallet, note)}',
+        f'{payment.format()}',
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True, input_field_placeholder='Yes or No'
         ),
@@ -122,23 +122,19 @@ async def update_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def update_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message.text == 'Yes':
-        payer = context.chat_data['payer']
-        wallet = context.chat_data['wallet']
-        amount = context.chat_data['amount']
-        note = context.chat_data['note']
-        logging.info('User %s finalized /update command. Parameters: %s',
-                     update.message.from_user.first_name, json.dumps({'payer': payer, 'wallet': wallet, 'amount': amount, 'note': note}))
-        database.write_transaction(payer, float(amount), wallet, note)
+        payment = context.chat_data['payment']
+        logging.info('User %s finalized /update command. Parameters: %s', update.message.from_user.first_name, payment.jsonify())
+        database.write_transaction(payment)
         await update.message.reply_text(
-            get_formatted_balance(wallet),
+            get_formatted_balance(payment.wallet),
             reply_markup=ReplyKeyboardRemove(),
         )
 
         # Inform the other user about the payment
         other = config.get_other_chat_id(update.message.chat_id)
-        msg = f'{format_payment(payer, amount, wallet, note)}\n' \
+        msg = f'{payment.format()}\n' \
               f'New status:\n' \
-              f'{get_formatted_balance(wallet)}'
+              f'{get_formatted_balance(payment.wallet)}'
         await application.bot.send_message(
             chat_id=other,
             text=msg
