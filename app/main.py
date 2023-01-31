@@ -188,11 +188,11 @@ async def last_3_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # ------------------ history command --------------------
 async def history_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     logging.info("User %s issued /history command", update.message.from_user.first_name)
-    p = f'/tmp/{datetime.now()}.json'
-    with open(p, 'w') as f:
+    history_json = f'/tmp/{datetime.now()}.json'
+    with open(history_json, 'w') as f:
         f.write(jsonify_payments(database.get_payments()))
     await update.message.reply_document(
-        p,
+        document=history_json,
         filename=f'history.json'
     )
     return ConversationHandler.END
