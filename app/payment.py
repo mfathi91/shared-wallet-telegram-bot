@@ -40,3 +40,6 @@ class PersistedPayment(Payment):
             result['payments'].append({'payer': payment.payer, 'amount': f'{payment.amount} {payment.wallet_symbol}',
                                        'wallet': payment.wallet, 'note': payment.note, 'datetime': payment.date})
         return json.dumps(result, indent=4)
+
+    def __repr__(self):
+        return f'PersistedPayment ({self.payer!r}, {self.amount!r}, {self.wallet!r}, {self.wallet_symbol!r}, {self.note!r}, {self.date!r})'
