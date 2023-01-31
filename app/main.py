@@ -1,10 +1,8 @@
-import json
 import logging
 import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import (
@@ -18,7 +16,7 @@ from telegram.ext import (
 
 from configuration import Configuration
 from database import Database
-from payment import Payment
+from payment import Payment, PersistedPayment
 
 # Ensure the env variable is present
 version_env = os.environ.get('VERSION', None)
@@ -174,7 +172,9 @@ async def last_3_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     logging.info("User %s issued /last3 command", update.message.from_user.first_name)
     payments = database.get_payments()[-3:]
     if payments:
-        msg = '\n'.join(format_payment(payer=p[0], amount=p[1], wallet=p[2], note=p[3], date=p[4]) for p in payments)
+        msg = ''
+        for payment in payments:
+            msg += f'{payment.format()}\n'
     else:
         msg = 'No payments registered'
     await update.message.reply_text(text=msg)
@@ -186,7 +186,7 @@ async def history_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     logging.info("User %s issued /history command", update.message.from_user.first_name)
     history_json = f'/tmp/{datetime.now()}.json'
     with open(history_json, 'w') as f:
-        f.write(jsonify_payments(database.get_payments()))
+        f.write(PersistedPayment.jsonify_all(database.get_payments()))
     await update.message.reply_document(
         document=history_json,
         filename=f'history.json'
@@ -222,25 +222,6 @@ def get_formatted_balance(wallet: str) -> str:
             symbol = config.get_wallet_symbol(wallet)
             return f'{creditor}: {amount} {symbol}\n{debtor}: 0 {symbol}'
     return '0'
-
-
-def jsonify_payments(payments: List[Tuple]) -> str:
-    result = {'payments': []}
-    for payment in payments:
-        wallet = payment[2]
-        record = {'payer': payment[0], 'amount': f'{payment[1]} {config.get_wallet_symbol(wallet)}', 'wallet': wallet, 'note': payment[3], 'datetime': payment[4]}
-        result['payments'].append(record)
-    return json.dumps(result, indent=4)
-
-
-def format_payment(payer: str, amount: str, wallet: str, note: str, date: str = None) -> str:
-    f = f'Payer: {payer}\n' \
-        f'Amount: {amount} {config.get_wallet_symbol(wallet)}\n' \
-        f'Wallet: {wallet}\n' \
-        f'Note: {note}\n'
-    if date:
-        f += f'Date: {date}\n'
-    return f
 
 
 # -------------------------------------------------

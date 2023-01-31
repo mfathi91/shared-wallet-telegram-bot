@@ -1,13 +1,16 @@
+from __future__ import annotations
+
 import json
-from typing import NamedTuple
+from typing import List
 
 
-class Payment(NamedTuple):
-    payer: str
-    amount: str
-    wallet: str
-    wallet_symbol: str
-    note: str
+class Payment:
+    def __init__(self, payer: str, amount: str, wallet: str, wallet_symbol: str, note: str):
+        self.payer = payer
+        self.amount = amount
+        self.wallet = wallet
+        self.wallet_symbol = wallet_symbol
+        self.note = note
 
     def format(self) -> str:
         return f'Payer: {self.payer}\n' \
@@ -23,7 +26,17 @@ class Payment(NamedTuple):
 
 
 class PersistedPayment(Payment):
-    date: str
+    def __init__(self, payer: str, amount: str, wallet: str, wallet_symbol: str, note: str, date):
+        super().__init__(payer, amount, wallet, wallet_symbol, note)
+        self.date = date
 
     def format(self) -> str:
-        return f'{self.format()}Date: {self.date}\n'
+        return f'{super().format()}Date: {self.date}\n'
+
+    @staticmethod
+    def jsonify_all(payments: List[PersistedPayment]) -> str:
+        result = {'payments': []}
+        for payment in payments:
+            result['payments'].append({'payer': payment.payer, 'amount': f'{payment.amount} {payment.wallet_symbol}',
+                                       'wallet': payment.wallet, 'note': payment.note, 'datetime': payment.date})
+        return json.dumps(result, indent=4)

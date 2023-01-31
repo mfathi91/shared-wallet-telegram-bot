@@ -5,7 +5,7 @@ from sqlite3 import Connection
 from typing import Tuple, List
 
 from configuration import Configuration
-from payment import Payment
+from payment import Payment, PersistedPayment
 
 
 class Database:
@@ -167,24 +167,18 @@ class Database:
             finally:
                 cursor.close()
 
-    def get_payments(self, wallet: str = None) -> List[Tuple]:
+    def get_payments(self) -> List[PersistedPayment]:
         payments = []
         with sqlite3.connect(self._database_path) as connection:
             cursor = connection.cursor()
             try:
-
-                if wallet:
-                    rows = cursor.execute('SELECT users.name, amount, wallets.wallet, note, dt FROM payments '
-                                          'JOIN users ON payments.payer_id = users.id '
-                                          'JOIN wallets ON payments.wallet_id = wallets.id '
-                                          'WHERE wallets.wallet = :wallet', {'wallet': wallet}).fetchall()
-                else:
-                    rows = cursor.execute('SELECT users.name, amount, wallets.wallet, note, dt FROM payments '
-                                          'JOIN users ON payments.payer_id = users.id '
-                                          'JOIN wallets ON payments.wallet_id = wallets.id').fetchall()
+                rows = cursor.execute('SELECT users.name, amount, wallets.wallet, note, dt FROM payments '
+                                      'JOIN users ON payments.payer_id = users.id '
+                                      'JOIN wallets ON payments.wallet_id = wallets.id').fetchall()
                 if rows:
                     for row in rows:
-                        payments.append((row[0], row[1], row[2], row[3], row[4]))
+                        wallet_symbol = self._configuration.get_wallet_symbol(row[2])
+                        payments.append(PersistedPayment(row[0], row[1], row[2], wallet_symbol, row[3], row[4]))
             finally:
                 cursor.close()
         return payments
