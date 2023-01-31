@@ -178,7 +178,7 @@ class Database:
                 if rows:
                     for row in rows:
                         wallet_symbol = self._configuration.get_wallet_symbol(row[2])
-                        payments.append(PersistedPayment(row[0], row[1], row[2], wallet_symbol, row[3], row[4]))
+                        payments.append(PersistedPayment(row[0], str(row[1]), row[2], wallet_symbol, row[3], row[4]))
             finally:
                 cursor.close()
         return payments

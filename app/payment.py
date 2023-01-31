@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from typing import List
 
+import num2persian
+
 
 class Payment:
     def __init__(self, payer: str, amount: str, wallet: str, wallet_symbol: str, note: str):
@@ -13,10 +15,18 @@ class Payment:
         self.note = note
 
     def format(self) -> str:
-        return f'Payer: {self.payer}\n' \
-               f'Amount: {self.amount} {self.wallet_symbol}\n' \
-               f'Wallet: {self.wallet}\n' \
-               f'Note: {self.note}\n'
+        result = f'Payer: {self.payer}\n' \
+                 f'Amount: {self.amount} {self.wallet_symbol}\n'
+        # TODO: workaround for having Persian amount of payment
+        if self.wallet == 'Toman':
+            try:
+                persian_amount = num2persian.to_persian(self.amount)
+                result += f'Amount: {persian_amount}\n'
+            except ValueError:
+                pass
+        result += f'Wallet: {self.wallet}\n' \
+                  f'Note: {self.note}\n'
+        return result
 
     def jsonify(self):
         return json.dumps({'payer': self.payer, 'wallet': self.wallet, 'amount': self.amount, 'note': self.note})
