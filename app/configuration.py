@@ -27,6 +27,10 @@ class Configuration:
                 raise ConfigurationError(f'Configuration error: "chat_id" not defined in at least one user.')
             if self._user1['name'] == self._user2['name']:
                 raise ConfigurationError(f'Configuration error: usernames cannot be the same.')
+            if type(self._user1['name']) != str or type(self._user2['name']) != str:
+                raise ConfigurationError('Type of the configured usernames is not str')
+            if type(self._user1['chat_id']) != int or type(self._user2['chat_id']) != int:
+                raise ConfigurationError('Type of the configured chat IDs is not int')
 
             logger.info(f'Configured users: {self._user1["name"]} and {self._user2["name"]}')
             logger.info(f'Configured user IDs: {self._user2["chat_id"]} and {self._user2["chat_id"]}')

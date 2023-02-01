@@ -29,8 +29,9 @@ class TestConfiguration(unittest.TestCase):
             cfg_json.write('{"token": "foo",'
                            '"users": [{"name": "Julia", "chat_id": 1234}, {"name": "Jack", "chat_id": 4321}]}')
             cfg_json.flush()
-            with self.assertRaises(KeyError):
+            with self.assertRaises(KeyError) as cm:
                 Configuration(cfg_json.name, logging)
+            self.assertEqual("'wallets'", str(cm.exception))
 
     def test_init3(self):
         # Should fail because no users is configured
@@ -38,8 +39,9 @@ class TestConfiguration(unittest.TestCase):
             cfg_json.write('{"token": "foo",'
                            '"wallets": [{"currency": "Dollar", "symbol": "$"}]}')
             cfg_json.flush()
-            with self.assertRaises(KeyError):
+            with self.assertRaises(KeyError) as cm:
                 Configuration(cfg_json.name, logging)
+            self.assertEqual("'users'", str(cm.exception))
 
     def test_init4(self):
         # Should fail because of similar currency names
@@ -48,8 +50,9 @@ class TestConfiguration(unittest.TestCase):
                            '"wallets": [{"currency": "Dollar", "symbol": "$"}, {"currency": "Dollar", "symbol": "T"}],'
                            '"users": [{"name": "Julia", "chat_id": 1234}, {"name": "Jack", "chat_id": 4321}]}')
             cfg_json.flush()
-            with self.assertRaises(ConfigurationError, msg='Configuration error: the wallet must have unique currency names.'):
+            with self.assertRaises(ConfigurationError) as cm:
                 Configuration(cfg_json.name, logging)
+            self.assertEqual('Configuration error: the wallet must have unique currency names.', str(cm.exception))
 
     def test_init5(self):
         # Should fail because number of configured users is not 2
@@ -58,10 +61,33 @@ class TestConfiguration(unittest.TestCase):
                            '"wallets": [{"currency": "Dollar", "symbol": "$"}],'
                            '"users": [{"name": "Julia", "chat_id": 1234}]}')
             cfg_json.flush()
-            with self.assertRaises(ConfigurationError, msg='Configuration error: number of configured users must be 2, while it is 1'):
+            with self.assertRaises(ConfigurationError) as cm:
                 Configuration(cfg_json.name, logging)
+            self.assertEqual('Configuration error: number of configured users must be 2, while it is 1', str(cm.exception))
 
     def test_init6(self):
+        # Should fail because type of username is not str
+        with tempfile.NamedTemporaryFile('w') as cfg_json:
+            cfg_json.write('{"token": "my_bot_token",'
+                           '"wallets": [{"currency": "Dollar", "symbol": "$"}, {"currency": "Toman", "symbol": "T"}],'
+                           '"users": [{"name": 6543, "chat_id": 1234}, {"name": "Jack", "chat_id": 4321}]}')
+            cfg_json.flush()
+            with self.assertRaises(ConfigurationError) as cm:
+                Configuration(cfg_json.name, logging)
+            self.assertEqual('Type of the configured usernames is not str', str(cm.exception))
+
+    def test_init7(self):
+        # Should fail because type of chat id is not int
+        with tempfile.NamedTemporaryFile('w') as cfg_json:
+            cfg_json.write('{"token": "my_bot_token",'
+                           '"wallets": [{"currency": "Dollar", "symbol": "$"}, {"currency": "Toman", "symbol": "T"}],'
+                           '"users": [{"name": "Julia", "chat_id": "1234"}, {"name": "Jack", "chat_id": 4321}]}')
+            cfg_json.flush()
+            with self.assertRaises(ConfigurationError) as cm:
+                Configuration(cfg_json.name, logging)
+            self.assertEqual('Type of the configured chat IDs is not int', str(cm.exception))
+
+    def test_init8(self):
         # Should create the new instance successfully
         with tempfile.NamedTemporaryFile('w') as cfg_json:
             cfg_json.write(TestConfiguration.VALID_CFG_JSON)
