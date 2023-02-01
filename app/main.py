@@ -167,10 +167,10 @@ async def status_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
-# ------------------ last 3 command --------------------
-async def last_3_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    logging.info("User %s issued /last3 command", update.message.from_user.first_name)
-    payments = database.get_payments()[-3:]
+# ------------------ last 5 command --------------------
+async def last_5_payments(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    logging.info("User %s issued /last5 command", update.message.from_user.first_name)
+    payments = database.get_payments()[-5:]
     if payments:
         msg = ''
         for payment in payments:
@@ -250,8 +250,8 @@ def main():
     )
     application.add_handler(wallet_status_handler)
 
-    # Add command handler to get the last three payments (regardless of the wallets)
-    application.add_handler(CommandHandler('last3', last_3_payments, filters.User(config.get_chat_ids())))
+    # Add command handler to get the last 5 payments (regardless of the wallets)
+    application.add_handler(CommandHandler('last5', last_5_payments, filters.User(config.get_chat_ids())))
 
     # Add command handler to get the full history of the payments
     application.add_handler(CommandHandler('history', history_payments, filters.User(config.get_chat_ids())))
