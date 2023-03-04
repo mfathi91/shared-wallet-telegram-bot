@@ -32,7 +32,7 @@ console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.INFO)
 file_handler = logging.FileHandler(Path.joinpath(volumes_dir, 'log.txt'))
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         console_handler,
