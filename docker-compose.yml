@@ -4,6 +4,7 @@ services:
   wallet:
     build: app
     image: ghcr.io/mfathi91/shared-wallet-telegram-bot:${VERSION}
+    platform: ${PLATFORM_ARCH}
     volumes:
       - ./volumes:${VOLUMES_DIRECTORY}
 
