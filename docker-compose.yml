@@ -7,6 +7,7 @@ services:
     platform: ${PLATFORM_ARCH}
     volumes:
       - ./volumes:${VOLUMES_DIRECTORY}
+    restart: always
 
     # Pass the required env variables to the application code
     environment:
